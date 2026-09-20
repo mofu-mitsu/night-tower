@@ -1,0 +1,6 @@
+{
+  "name": "NIGHT TOWER - 性格構造と欺瞞の深層診断",
+  "description": "夜の摩天楼にそびえる謎のタワーを登り、各階の個性的な住人たちが仕掛ける理不尽ミニゲームを突破して己の正体を暴くアトラクション型キャラクター深層診断。心理機能、欺瞞、エニアグラムからあなたの深層構造を解明します。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

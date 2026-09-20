@@ -1,0 +1,136 @@
+================================================================================
+  NIGHT TOWER - Google Apps Script (GAS) スプレッドシート連携スクリプト
+================================================================================
+
+【概要】
+NIGHT TOWER の診断結果（キャラクター、各パラメータ、行動ログ、獲得実績、タワー名など）を
+Google スプレッドシートにリアルタイムで自動記録するための GAS コードです。
+
+--------------------------------------------------------------------------------
+■ 導入手順（3分で完了します）
+--------------------------------------------------------------------------------
+1. Google ドライブで新しい「Google スプレッドシート」を作成します。
+   （シート名は「シート1」のままでOKです。ヘッダーは自動生成されます）
+
+2. 上部メニューの「拡張機能」 ＞ 「Apps Script」をクリックします。
+
+3. もともとエディタに書いてある「function myFunction() {}」をすべて消去し、
+   以下の【GAS スクリプトコード】をそのまま全てコピー＆ペーストします。
+
+4. 画面右上の「デプロイ」ボタン ＞ 「新しいデプロイ」をクリックします。
+
+5. 歯車アイコン（種類の選択）をクリックし、「ウェブアプリ」を選択します。
+   ・説明: 「NIGHT TOWER 診断ログ記録」
+   ・次のユーザーとして実行: 「自分」（デフォルト）
+   ・アクセスできるユーザー: ★必ず【全員】（Anyone）を選択してください★
+
+6. 「デプロイ」をクリックし、Googleアカウントへのアクセス権を承認します。
+   （「詳細」→「〜（安全ではないページ）に移動」をクリックして許可）
+
+7. 表示された【ウェブアプリの URL】（https://script.google.com/macros/s/.../exec）をコピーします。
+
+8. アプリへの設定方法:
+   ・Vercel等の環境変数に `VITE_GAS_URL` としてURLを設定するか、
+   ・またはコード（src/utils/gas.ts）の `DEFAULT_GAS_URL` に直接貼り付けてください。
+
+
+--------------------------------------------------------------------------------
+■【GAS スクリプトコード】（ここから下を Apps Script に貼り付けてください）
+--------------------------------------------------------------------------------
+
+/**
+ * NIGHT TOWER 診断結果レシーバー
+ */
+function doPost(e) {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    
+    // ヘッダーが未作成（1行目が空）の場合は自動でヘッダー行を生成
+    if (sheet.getLastRow() === 0) {
+      var headers = [
+        "記録日時",
+        "キャラクター名",
+        "サブタイトル",
+        "タイプバッジ",
+        "タワー名",
+        "タワー型",
+        "Fe仮面ランク",
+        "カオス値 (chaos)",
+        "構造値 (structure)",
+        "燃料値 (fuel)",
+        "フロー値 (flow)",
+        "演技値 (acting)",
+        "ILI洞察 (iliInsight)",
+        "Fe演技 (feActing)",
+        "Fe幻想 (feIllusion)",
+        "獲得実績数",
+        "獲得実績一覧",
+        "ダーリンへの最終感想",
+        "行動ログ",
+        "キリギリス音符数",
+        "ユーザー環境 (UA)"
+      ];
+      sheet.appendRow(headers);
+      sheet.getRange(1, 1, 1, headers.length).setBackground("#0f172a").setFontColor("#38bdf8").setFontWeight("bold");
+      sheet.setFrozenRows(1);
+    }
+    
+    // 送信データの解析
+    var data;
+    if (e.postData && e.postData.contents) {
+      try {
+        data = JSON.parse(e.postData.contents);
+      } catch (err) {
+        data = e.parameter || {};
+      }
+    } else {
+      data = e.parameter || {};
+    }
+    
+    var timestamp = new Date();
+    var jstTime = Utilities.formatDate(timestamp, "Asia/Tokyo", "yyyy/MM/dd HH:mm:ss");
+    
+    var params = data.parameters || {};
+    var profile = data.profile || {};
+    var achievements = Array.isArray(data.achievements) ? data.achievements.join(", ") : (data.achievements || "");
+    var actions = Array.isArray(data.actionLogs) ? data.actionLogs.join(" ➔ ") : (data.actionLogs || "");
+    
+    var row = [
+      jstTime,
+      profile.name || data.characterName || "",
+      profile.subTitle || "",
+      profile.typeBadge || "",
+      data.customTowerName || "名もなき塔",
+      (profile.towerType && profile.towerType.title) || "",
+      profile.feRank || "",
+      params.chaos !== undefined ? params.chaos : 0,
+      params.structure !== undefined ? params.structure : 0,
+      params.fuel !== undefined ? params.fuel : 0,
+      params.flow !== undefined ? params.flow : 0,
+      params.acting !== undefined ? params.acting : 0,
+      params.iliInsight !== undefined ? params.iliInsight : 0,
+      params.feActing !== undefined ? params.feActing : 0,
+      params.feIllusion !== undefined ? params.feIllusion : 0,
+      data.achievementCount !== undefined ? data.achievementCount : 0,
+      achievements,
+      data.finalImpression || "",
+      actions,
+      data.kirigirisNotesCount !== undefined ? data.kirigirisNotesCount : 0,
+      data.userAgent || ""
+    ];
+    
+    sheet.appendRow(row);
+    
+    return ContentService.createTextOutput(JSON.stringify({ status: "success", timestamp: jstTime }))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({ status: "ok", message: "NIGHT TOWER GAS Endpoint is active." }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
