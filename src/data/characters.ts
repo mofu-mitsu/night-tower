@@ -290,6 +290,13 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     unlocked: false,
   },
   {
+    id: 'kirigiris_100_combo',
+    title: '神速の即興バイオリニスト',
+    description: 'キリギリスの30秒セッションで楽器を100回以上タップして狂乱のビートを刻んだ',
+    emoji: '⚡',
+    unlocked: false,
+  },
+  {
     id: 'morpho_emergence',
     title: 'レトノールモルフォ羽化',
     description: '壊れたフローチャートを繋ぎ合わせ、LSI芋虫を完全体へと覚醒させた',
@@ -337,7 +344,7 @@ export function evaluateFinalResult(
   const isAliceAwakened = isUnlocked('alice_awakening');
   const isIliCode = isUnlocked('ili_code_breaker');
   const isMorpho = isUnlocked('morpho_emergence');
-  const isSweatOil = isUnlocked('sweat_oil_fantasy');
+  const isKirigirisGod = isUnlocked('kirigiris_100_combo');
 
   // --- 1. 最優先特殊覚醒ルート ---
   // A. アリス（完全ILI：素の観測者）: 最上階で演出を粉砕またはコード解析
@@ -345,74 +352,78 @@ export function evaluateFinalResult(
     return CHARACTER_PROFILES['darling_ili'];
   }
   // B. 完全体LSI（レトノールモルフォ）: フローチャートを完全修復して羽化
-  if (isMorpho && params.structure >= 45) {
+  if (isMorpho && params.structure >= 60) {
     return CHARACTER_PROFILES['lsi_morpho'];
   }
-  // C. 汗と油のファンタジー: 意図して出汁と汗を混ぜた場合のみ確定
-  if (isSweatOil) {
-    return params.chaos >= params.structure
-      ? CHARACTER_PROFILES['gohoubi']
-      : CHARACTER_PROFILES['eiji'];
+  // C. キリギリス覚醒: 楽器を100回以上連打した即興神
+  if (isKirigirisGod) {
+    return CHARACTER_PROFILES['kirigiris'];
   }
 
-  // --- 2. 公平な総合マッチ度スコア算出 ---
+  // --- 2. 0〜100% 正規化パラメータ（UIのグラフと完全に同一の基準） ---
+  const pStructure = Math.min(100, Math.round((params.structure / MAX_PARAMS.structure) * 100));
+  const pFlow = Math.min(100, Math.round((params.flow / MAX_PARAMS.flow) * 100));
+  const pChaos = Math.min(100, Math.round((params.chaos / MAX_PARAMS.chaos) * 100));
+  const pFuel = Math.min(100, Math.round((params.fuel / MAX_PARAMS.fuel) * 100));
+  const pActing = Math.min(100, Math.round(((params.acting + params.feActing) / (MAX_PARAMS.acting + MAX_PARAMS.feActing)) * 100));
+  const pIli = Math.min(100, params.iliInsight);
+  const pDeviation = Math.min(100, Math.round((params.deviation / 40) * 100));
+
+  // --- 3. 純粋なパーセンテージ基準の公平マッチ度スコア算出 ---
   const scores: Record<ResultId, number> = {
-    // ダーリンちゃん: Fe仮面・演出値・甘い共犯
+    // ダーリンちゃん: 演出・仮面適応が最優先
     darling_fe:
-      params.feActing * 1.5 +
-      params.acting * 1.1 +
-      (isUnlocked('sweet_mask_master') ? 45 : 0),
+      pActing * 1.6 +
+      (isUnlocked('sweet_mask_master') ? 25 : 0),
 
     // アリス（通常ルート）: ILI洞察・メタ視点
     darling_ili:
-      params.iliInsight * 1.6 +
-      (isUnlocked('ili_code_breaker') ? 35 : 0),
+      pIli * 1.6 +
+      (isUnlocked('ili_code_breaker') ? 25 : 0),
 
-    // 完全体LSI（通常スコア）
+    // 完全体LSI: 構造把握が極めて高く、羽化実績がある
     lsi_morpho:
-      params.structure * 1.3 + (isMorpho ? 40 : 0),
+      pStructure * 1.5 + (isMorpho ? 30 : 0),
 
-    // LSI芋虫: 純粋な構造把握・論理整合性
+    // LSI芋虫: 純粋な構造把握・秩序・論理整合性
     lsi_caterpillar:
-      params.structure * 1.4 +
-      (100 - Math.min(100, params.chaos)) * 0.4 +
-      (params.flow >= 30 ? 15 : 0),
+      pStructure * 1.5 +
+      (100 - pChaos) * 0.3,
 
-    // つくし: 構造＋状況定義＋淡々とした遂行
+    // つくし: 構造把握が高く、迎合や演技をしない淡々とした遂行者
     tsukushi:
-      params.structure * 1.2 +
-      (isUnlocked('redefine_world') ? 50 : 0) +
-      (100 - Math.min(100, params.acting)) * 0.4,
+      pStructure * 1.3 +
+      (100 - pActing) * 0.4 +
+      (isUnlocked('redefine_world') ? 25 : 0),
 
-    // ララ: ルールの穴・逸脱・ハック
+    // ララ: ルールの穴・逸脱・ハック・混沌
     lala:
-      params.deviation * 1.6 +
-      (isUnlocked('rule_hacker') ? 50 : 0) +
-      params.chaos * 0.3,
+      pDeviation * 1.6 +
+      pChaos * 0.4 +
+      (isUnlocked('rule_hacker') ? 60 : 0),
 
-    // キリギリス: フロー＋カオス耐性＋即興セッション
+    // キリギリス: 流動・受け流しとカオス耐性の両立
     kirigiris:
-      params.flow * 1.2 +
-      params.chaos * 1.0 +
-      (isUnlocked('kirigiris_rest') ? 50 : 0),
+      (pFlow + pChaos) * 0.85 +
+      (isUnlocked('kirigiris_rest') ? 35 : 0) +
+      (pFlow >= 40 && pChaos >= 30 ? 25 : 0),
 
-    // はこ: 流動・決断の委ね・思考の無限海
+    // はこ: 流動・受け流し特化、思考を漂わせる
     hako:
-      params.flow * 1.4 +
-      (isUnlocked('hako_pass') ? 50 : 0) +
-      (100 - Math.min(100, params.fuel)) * 0.4,
+      pFlow * 1.5 +
+      (100 - pFuel) * 0.3 +
+      (isUnlocked('hako_pass') ? 25 : 0),
 
-    // えいじ: 高速連打・情熱・純粋な筋肉燃料
+    // えいじ: 情熱・燃料度（筋肉と情熱）のみを主軸に評価（構造は加算しない）
     eiji:
-      params.fuel * 1.3 +
-      params.structure * 0.5 +
-      (params.fuel > 50 ? 20 : 0),
+      pFuel * 1.6 +
+      (isUnlocked('sweat_oil_fantasy') ? 15 : 0),
 
-    // ご褒美: 出汁狂気・カオス燃料・男気エキス
+    // ご褒美: 燃料と混沌の出汁エキス
     gohoubi:
-      params.fuel * 0.9 +
-      params.chaos * 1.1 +
-      (isUnlocked('hero_certified') ? 45 : 0),
+      (pFuel * 0.8 + pChaos * 0.8) +
+      (isUnlocked('hero_certified') ? 20 : 0) +
+      (isUnlocked('sweat_oil_fantasy') ? 15 : 0),
   };
 
   // 最も高いスコアのキャラクターを選出

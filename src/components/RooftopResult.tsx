@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, RefreshCw, Share2, Award, BarChart3, Building, Eye, Download, Copy, Send, Play, Square, Volume2, MessageCircle } from 'lucide-react';
+import { Sparkles, RefreshCw, Share2, Award, BarChart3, Building, Eye, Download, Copy, Send, Play, Square, Volume2, MessageCircle, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import domtoimage from 'dom-to-image-more';
 import { CharacterProfile, TowerParameters, Achievement, GlobalState, KirigirisNote } from '../types';
-import { MAX_TOWER_PARAMS } from '../data/characters';
+import { MAX_TOWER_PARAMS, ALL_ACHIEVEMENTS } from '../data/characters';
 import { sound } from '../utils/sound';
 import { sendDiagnosticResultToGAS } from '../utils/gas';
 import aliceImg from '../assets/images/alice.png';
+import eijiImg from '../assets/images/eiji.png';
+import gohobiImg from '../assets/images/gohobi.png';
 
 interface RooftopResultProps {
   profile: CharacterProfile;
@@ -52,6 +54,7 @@ export const RooftopResult: React.FC<RooftopResultProps> = ({
   const [impression, setImpression] = useState('');
   const [observation, setObservation] = useState<DarlingObservation | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
   // キリギリス曲再生ステート
@@ -290,9 +293,24 @@ export const RooftopResult: React.FC<RooftopResultProps> = ({
     musicTimerRef.current = requestAnimationFrame(updateLoop);
   };
 
+  const isMobileDevice = () => {
+    if (typeof window === 'undefined') return false;
+    return (
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (window.matchMedia && window.matchMedia('(max-width: 768px)').matches)
+    );
+  };
+
   const handleShare = async () => {
     sound.playClick(600);
-    const text = `【NIGHT TOWER 診断結果】\n私は【${profile.emoji} ${profile.name}】（${profile.subTitle}）でした！\n\n生成タワー: 『${profile.towerType.title}』\n命名: 『${globalState.customTowerName || '名もなき塔'}』\n「${profile.speech}」\n\n#NIGHTTOWER #キャラクター診断`;
+    const text = `【NIGHT TOWER 診断結果】
+私は【${profile.emoji} ${profile.name}】（${profile.subTitle}）でした！
+
+生成タワー: 『${profile.towerType.title}』
+命名: 『${globalState.customTowerName || '名もなき塔'}』
+実績獲得数: ${unlockedAchievementIds.length}/${ALL_ACHIEVEMENTS.length}
+
+#NIGHTTOWER #性格診断`;
     
     if (navigator.share) {
       try {
@@ -336,10 +354,16 @@ export const RooftopResult: React.FC<RooftopResultProps> = ({
         },
       });
 
-      const link = document.createElement('a');
-      link.download = `night_tower_${profile.id}_result.png`;
-      link.href = dataUrl;
-      link.click();
+      if (isMobileDevice()) {
+        // スマホの場合は画像長押し保存モーダルを表示
+        setPreviewImageUrl(dataUrl);
+      } else {
+        // PCの場合は即座にファイルダウンロード
+        const link = document.createElement('a');
+        link.download = `night_tower_${profile.id}_result.png`;
+        link.href = dataUrl;
+        link.click();
+      }
     } catch (err) {
       console.error('Failed to capture image', err);
     } finally {
@@ -527,6 +551,18 @@ export const RooftopResult: React.FC<RooftopResultProps> = ({
                 alt="アリス（完全ILI）"
                 className="w-full h-full object-cover object-center"
               />
+            ) : profile.id === 'eiji' ? (
+              <img
+                src={eijiImg}
+                alt="えいじ"
+                className="w-full h-full object-cover object-center"
+              />
+            ) : profile.id === 'gohoubi' ? (
+              <img
+                src={gohobiImg}
+                alt="ご褒美"
+                className="w-full h-full object-cover object-center"
+              />
             ) : (
               profile.emoji
             )}
@@ -669,7 +705,7 @@ export const RooftopResult: React.FC<RooftopResultProps> = ({
           <Share2 className="w-4 h-4" /> 診断結果をシェア
         </button>
         <button onClick={handleDownloadImage} disabled={isCapturing} className="py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold text-white text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all disabled:opacity-50">
-          <Download className="w-4 h-4" /> {isCapturing ? '生成中...' : '結果画像を保存'}
+          <Download className="w-4 h-4" /> {isCapturing ? '生成中...' : isMobileDevice() ? '画像を保存（長押し）' : '結果画像を保存'}
         </button>
         <button onClick={handleCopyLogs} className="py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-600 font-bold text-white text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all">
           <Copy className="w-4 h-4" /> 行動ログをコピー
@@ -678,6 +714,49 @@ export const RooftopResult: React.FC<RooftopResultProps> = ({
           <RefreshCw className="w-4 h-4" /> もう一度登る
         </button>
       </div>
+
+      {/* 📱 スマホ用：画像長押し保存モーダル（スクロール ＆ 閉じるボタン完備） */}
+      {previewImageUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md">
+          <div className="relative max-w-lg w-full bg-slate-900 border border-amber-500/50 rounded-3xl p-4 sm:p-5 shadow-[0_0_50px_rgba(245,158,11,0.2)] flex flex-col items-center">
+            {/* モーダルヘッダー */}
+            <div className="w-full flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="text-sm font-bold text-amber-300 flex items-center gap-2">
+                <span>📱 画像を長押しして保存</span>
+              </div>
+              <button
+                onClick={() => setPreviewImageUrl(null)}
+                className="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer active:scale-90 transition-all"
+                title="閉じる"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 mt-3 mb-2 text-center leading-relaxed">
+              下の画像を<strong className="text-amber-300">長押し</strong>して<br />
+              <span className="text-amber-400 font-bold">「写真に追加」</span> または <span className="text-amber-400 font-bold">「画像を保存」</span> を選んでね！
+            </p>
+
+            {/* スクロール可能な画像領域 */}
+            <div className="w-full overflow-y-auto max-h-[60vh] rounded-2xl border border-slate-800 bg-slate-950 p-2 my-2 shadow-inner">
+              <img
+                src={previewImageUrl}
+                alt="NIGHT TOWER 診断結果"
+                className="w-full h-auto rounded-xl shadow-md block mx-auto pointer-events-auto select-none"
+              />
+            </div>
+
+            {/* 閉じるボタン */}
+            <button
+              onClick={() => setPreviewImageUrl(null)}
+              className="mt-2 w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-900 font-bold text-sm cursor-pointer shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5"
+            >
+              <X className="w-4 h-4" /> 閉じる
+            </button>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

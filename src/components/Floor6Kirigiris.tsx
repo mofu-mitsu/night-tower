@@ -82,8 +82,13 @@ export const Floor6Kirigiris: React.FC<Floor6KirigirisProps> = ({ onComplete, se
     const relTime = Date.now() - startTime.current;
     const note: KirigirisNote = { id, time: relTime, type, freq };
     setPlayedInstruments((prev) => [...prev, note]);
-    if (playedInstruments.length === 4) {
+    const nextCount = playedInstruments.length + 1;
+    if (nextCount === 4) {
       setKirigirisMessage('🦗「いいねいいね〜！ その調子！」');
+    } else if (nextCount === 50) {
+      setKirigirisMessage('🦗「すごい手数のビートだ！ テンポ上がってきたね〜！」');
+    } else if (nextCount === 100) {
+      setKirigirisMessage('🦗「うおおおっ！！ 100打突破ァァ！？ 君、本物のセッションの神だよ！！」');
     }
   };
 
@@ -138,9 +143,16 @@ export const Floor6Kirigiris: React.FC<Floor6KirigirisProps> = ({ onComplete, se
     const noteCount = playedInstruments.length;
     let flowGain = 20;
     let chaosGain = 15;
+    const achievements: string[] = [];
+
     if (noteCount === 0) {
       flowGain = 35;
       chaosGain = 0;
+      achievements.push('kirigiris_rest');
+    } else if (noteCount >= 100) {
+      flowGain = 60;
+      chaosGain = 60;
+      achievements.push('kirigiris_100_combo');
     } else if (noteCount >= 20) {
       flowGain = 35;
       chaosGain = 25;
@@ -151,8 +163,8 @@ export const Floor6Kirigiris: React.FC<Floor6KirigirisProps> = ({ onComplete, se
 
     onComplete(
       { chaos: chaosGain, flow: flowGain, acting: 10 },
-      noteCount === 0 ? ['kirigiris_rest'] : [],
-      { floor: '6F', action: `【キリギリス】楽器を${noteCount}回鳴らして30秒セッションした` }
+      achievements,
+      { floor: '6F', action: `【キリギリス】楽器を${noteCount}回鳴らして30秒セッションした${noteCount >= 100 ? '（神速100連打達成！）' : ''}` }
     );
   };
 

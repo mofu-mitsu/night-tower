@@ -14,10 +14,14 @@ interface Floor3LalaProps {
 
 export const Floor3Lala: React.FC<Floor3LalaProps> = ({ onComplete }) => {
   const [pressedButtons, setPressedButtons] = useState<string[]>([]);
+  const [mistakeCount, setMistakeCount] = useState<number>(0);
+  const [totalAttempts, setTotalAttempts] = useState<number>(0);
   const [lalaMessage, setLalaMessage] = useState<string>(
     '「ララだよ。よろしくね。……で、そのルール、本当に守る必要あるの？」'
   );
   const [isHacked, setIsHacked] = useState<boolean>(false);
+  const [isInstantClear, setIsInstantClear] = useState<boolean>(false);
+  const [isInstantRefuse, setIsInstantRefuse] = useState<boolean>(false);
   const [cleared, setCleared] = useState<boolean>(false);
 
   const buttons = [
@@ -30,11 +34,18 @@ export const Floor3Lala: React.FC<Floor3LalaProps> = ({ onComplete }) => {
 
   const handlePressButton = (id: string) => {
     sound.playClick(600);
+    setTotalAttempts((prev) => prev + 1);
 
     // 隠しルール00：黄色を1回だけ押すのが正解
     if (id === '3_yellow_circle' && pressedButtons.length === 0) {
       sound.playSuccess();
-      setLalaMessage('🐦「あはは！ RULE 00 見つけたんだ！ ズル賢いね、最高！」');
+      const isFirstShot = mistakeCount === 0 && totalAttempts === 0;
+      if (isFirstShot) {
+        setLalaMessage('🐦「うわ、初手一発でRULE 00見つけたの！？ ズル賢すぎてゾクゾクするね！ 一手も無駄にしない本物のハッカーだ！」');
+        setIsInstantClear(true);
+      } else {
+        setLalaMessage('🐦「あはは！ RULE 00 見つけたんだ！ ズル賢いね、最高！」');
+      }
       setIsHacked(true);
       setCleared(true);
       return;
@@ -43,6 +54,7 @@ export const Floor3Lala: React.FC<Floor3LalaProps> = ({ onComplete }) => {
     if (id === '2_red_square') {
       sound.playBuzzer();
       setPressedButtons([]);
+      setMistakeCount((prev) => prev + 1);
       setLalaMessage('🐦「あはは！ RULE 02読んだ？ 赤いボタン押しちゃったね。やり直し！」');
       return;
     }
@@ -50,6 +62,7 @@ export const Floor3Lala: React.FC<Floor3LalaProps> = ({ onComplete }) => {
     if (pressedButtons.includes(id)) {
       sound.playBuzzer();
       setPressedButtons([]);
+      setMistakeCount((prev) => prev + 1);
       setLalaMessage('🐦「同じボタンを2回押したね。やり直し〜！」');
       return;
     }
@@ -60,6 +73,7 @@ export const Floor3Lala: React.FC<Floor3LalaProps> = ({ onComplete }) => {
     if (next.length === 1 && next[0] !== '1_blue_circle') {
       sound.playBuzzer();
       setPressedButtons([]);
+      setMistakeCount((prev) => prev + 1);
       setLalaMessage('🐦「あーあ。RULE 01と04読んでる？ 最初は一番左の1番（青の丸）からじゃないの？ やり直し！」');
       return;
     }
@@ -67,6 +81,7 @@ export const Floor3Lala: React.FC<Floor3LalaProps> = ({ onComplete }) => {
     if (next.length === 2 && next[1] !== '3_yellow_circle') {
       sound.playBuzzer();
       setPressedButtons([]);
+      setMistakeCount((prev) => prev + 1);
       setLalaMessage('🐦「ちっちっち。RULE 05と07を守ってないね。青の次は黄色でしょ？ それに偶数はダメ！ やり直し！」');
       return;
     }
@@ -74,6 +89,7 @@ export const Floor3Lala: React.FC<Floor3LalaProps> = ({ onComplete }) => {
     if (next.length === 3 && next[2] !== '5_purple_circle') {
       sound.playBuzzer();
       setPressedButtons([]);
+      setMistakeCount((prev) => prev + 1);
       setLalaMessage('🐦「最後が惜しい！ RULE 06（同じ形）を守ってないよ。やり直し！」');
       return;
     }
@@ -83,7 +99,12 @@ export const Floor3Lala: React.FC<Floor3LalaProps> = ({ onComplete }) => {
     // 正解ルート: 🔵 -> 🟡 -> 🟣 (1, 3, 5)
     if (next.length === 3) {
       sound.playSuccess();
-      setLalaMessage('🐦「……へぇ、本当に全部のルールを満たしたんだ。君、面白いね。」');
+      if (mistakeCount === 0) {
+        setLalaMessage('🐦「……マジ？ 一度も間違えずに全12条を一発でノーミスクリアしたの！？ 完璧な構造把握と観察力だね。脱帽だよ。」');
+        setIsInstantClear(true);
+      } else {
+        setLalaMessage('🐦「……へぇ、やり直して全部のルールを満たしたんだ。君、面白いね。」');
+      }
       setCleared(true);
     }
   };
@@ -92,20 +113,65 @@ export const Floor3Lala: React.FC<Floor3LalaProps> = ({ onComplete }) => {
     sound.playClick(400);
     setIsHacked(true);
     setCleared(true);
-    setLalaMessage('🐦「えっ、そもそもゲームをやらない？……あはは！ ルールという土俵自体を蹴っ飛ばす一番の反則技じゃん。気に入ったよ。」');
+
+    if (mistakeCount === 0 && totalAttempts === 0) {
+      // 一度もボタンを触らず、初手でゲーム拒否
+      setIsInstantRefuse(true);
+      setLalaMessage('🐦「えっ、1手も打たずに初手で放棄！？……あはは！ ルールという土俵自体をノータイムで蹴っ飛ばす一番の反則技じゃん！ 気に入った、君最高だよ。」');
+    } else {
+      setLalaMessage('🐦「えっ、散々触ったあげくゲームをやらない？……あはは！ それでもルールという土俵自体を蹴っ飛ばす反則技には変わりないね。面白いよ。」');
+    }
   };
 
   const handleNextFloor = () => {
     sound.playElevator();
+
+    let deviationGain = 20;
+    let structureGain = 20;
+    let chaosGain = 10;
+    let logAction = '【ララ】ルール通りにクリアした';
+    const newAchievements: string[] = [];
+
+    if (isInstantRefuse) {
+      // 初手でゲーム拒否（最大級の逸脱・破壊）
+      deviationGain = 50;
+      chaosGain = 35;
+      structureGain = 10;
+      newAchievements.push('rule_hacker');
+      logAction = '【ララ】1手も打たずに初手でゲームを完全拒否した（神速の土俵破壊）';
+    } else if (isInstantClear) {
+      // 一発クリア（ノーミス）
+      deviationGain = isHacked ? 45 : 35;
+      structureGain = isHacked ? 35 : 45;
+      chaosGain = 20;
+      if (isHacked) newAchievements.push('rule_hacker');
+      logAction = isHacked
+        ? '【ララ】1手も間違えず初手一発でRULE 00を見破りクリアした'
+        : '【ララ】一度のミスもなく全12条のルールを一発で完全制覇した';
+    } else if (isHacked) {
+      // 試行錯誤後のハック（黄色押しまたは後からの拒否）
+      deviationGain = 30;
+      chaosGain = 20;
+      structureGain = 15;
+      newAchievements.push('rule_hacker');
+      logAction = '【ララ】試行錯誤の末にルールの穴を突いて突破した';
+    } else {
+      // 試行錯誤後の通常クリア
+      deviationGain = 15;
+      structureGain = 25;
+      logAction = '【ララ】やり直しながら真面目に全ルールをクリアした';
+    }
+
     onComplete(
       {
-        deviation: isHacked ? 40 : 20,
-        structure: 25,
+        deviation: deviationGain,
+        structure: structureGain,
+        chaos: chaosGain,
         acting: 10,
         fuel: 10,
       },
-      isHacked ? ['rule_hacker'] : [],
-      { floor: '3F', action: `【ララ】${isHacked ? 'ルールを破壊した' : 'ルール通りにクリアした'}` }
+      newAchievements,
+      { floor: '3F', action: logAction }
     );
   };
 
